@@ -1,0 +1,68 @@
+version: '2.2'
+
+services:
+  postgresqlalpha:
+    image: xenit/postgres-patroni:11.6-patroni-1.6.3
+    volumes:
+    - postgres-alpha_data:/var/lib/postgresql/data
+    - ./config/patroni/patroni-A:/config
+    - ./sql:/sql
+    ports:
+    - 0.0.0.0::5432
+    - 0.0.0.0::8008
+    environment:
+    - PGDATA=/var/lib/postgresql/data/PGDATA
+
+  postgresqlbravo:
+    image: xenit/postgres-patroni:11.6-patroni-1.6.3
+    volumes:
+    - postgres-bravo_data:/var/lib/postgresql/data
+    - ./config/patroni/patroni-B:/config
+    ports:
+    - 0.0.0.0::5432
+    - 0.0.0.0::8008
+    environment:
+    - PGDATA=/var/lib/postgresql/data/PGDATA
+
+  postgresqlcharlie:
+    image: xenit/postgres-patroni:11.6-patroni-1.6.3
+    volumes:
+    - postgres-charlie_data:/var/lib/postgresql/data
+    - ./config/patroni/patroni-C:/config
+    ports:
+    - 0.0.0.0::5432
+    - 0.0.0.0::8008
+    environment:
+    - PGDATA=/var/lib/postgresql/data/PGDATA
+
+  haproxy:
+    image: haproxy:2.0.5
+    volumes:
+    - ./config/haproxy:/usr/local/etc/haproxy
+    ports:
+    - 5000:5000
+
+  consul:
+    image: consul:1.5.3
+    ports:
+    - 0.0.0.0::8500
+    command: agent -data-dir /consul/data -server -bootstrap -ui -client 0.0.0.0
+
+  client:
+    depends_on:
+    - postgresqlalpha
+    - postgresqlbravo
+    - postgresqlcharlie
+    - consul
+    - haproxy
+    image: microbox/pgweb:latest
+    restart: on-failure
+    ports:
+    - 8080:8080
+    environment:
+    - URL=postgres://postgres:postgres@haproxy:5000/otus?sslmode=disable
+
+volumes:
+  postgres-alpha_data:
+  postgres-bravo_data:
+  postgres-charlie_data:
